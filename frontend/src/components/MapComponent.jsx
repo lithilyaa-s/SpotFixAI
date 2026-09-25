@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import L from "leaflet";
@@ -12,14 +12,54 @@ const getMarkerColor = (markerColor) => {
 };
 
 const getZoneColor = (heatLevel) => {
-  if (heatLevel === "Red") return { stroke: "#dc2626", fill: "#ef4444", label: "High Priority" };
-  if (heatLevel === "Yellow") return { stroke: "#d97706", fill: "#f59e0b", label: "Medium Priority" };
-  return { stroke: "#059669", fill: "#10b981", label: "Low Priority" };
+  if (heatLevel === "Red") {
+    return {
+      stroke: "#dc2626",
+      fill: "#ef4444",
+      label: "High Priority",
+      badgeBg: "#ef4444",
+    };
+  }
+  if (heatLevel === "Yellow") {
+    return {
+      stroke: "#d97706",
+      fill: "#f59e0b",
+      label: "Medium Priority",
+      badgeBg: "#d97706",
+    };
+  }
+  return {
+    stroke: "#059669",
+    fill: "#10b981",
+    label: "Low Priority",
+    badgeBg: "#059669",
+  };
 };
 
-const MapComponent = ({ markers = [], zones = [] }) => {
+const getCategoryIcon = (category = "") => {
+  const cat = category.toLowerCase();
+  if (cat.includes("road")) return "🛣️";
+  if (cat.includes("drain")) return "💧";
+  if (cat.includes("sanitation") || cat.includes("garbage")) return "🗑️";
+  if (cat.includes("electric") || cat.includes("light")) return "⚡";
+  if (cat.includes("water")) return "🚰";
+  if (cat.includes("safety") || cat.includes("danger")) return "⚠️";
+  if (cat.includes("environment") || cat.includes("tree")) return "🌳";
+  if (cat.includes("traffic")) return "🚦";
+  return "📍";
+};
+
+const MapComponent = ({
+  markers = [],
+  zones = [],
+  focusLocation = null,
+  activeCity = "",
+}) => {
   const { isDark } = useTheme();
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  const [showHeatZones, setShowHeatZones] = useState(true);
+  const [showMarkers, setShowMarkers] = useState(true);
 
   const mapContainerRef = useRef(null);
   const mapboxRef = useRef(null);
@@ -28,19 +68,22 @@ const MapComponent = ({ markers = [], zones = [] }) => {
   const leafletZonesLayerRef = useRef(null);
   const leafletMarkersLayerRef = useRef(null);
 
-  // ================= MAPBOX MODE (when token is provided) =================
+  // ================= 1. MAPBOX ENGINE (If token is provided) =================
   useEffect(() => {
     if (!token || !mapContainerRef.current) return;
 
     mapboxgl.accessToken = token;
+
+    const initialCenter =
+      activeCity === "Kolkata" ? [88.3639, 22.5726] : [80.2341, 13.0418];
 
     mapboxRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: isDark
         ? "mapbox://styles/mapbox/dark-v11"
         : "mapbox://styles/mapbox/streets-v12",
-      center: [80.2341, 13.0418],
-      zoom: 11,
+      center: initialCenter,
+      zoom: 12,
     });
 
     mapboxRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
@@ -73,58 +116,74 @@ const MapComponent = ({ markers = [], zones = [] }) => {
 
     const coordinates = [];
 
-    // Mapbox markers
-    markers.forEach((marker) => {
-      if (!marker.location?.lng || !marker.location?.lat) return;
+    if (showMarkers) {
+      markers.forEach((marker) => {
+        if (!marker.location?.lng || !marker.location?.lat) return;
 
-      coordinates.push([marker.location.lng, marker.location.lat]);
+        coordinates.push([marker.location.lng, marker.location.lat]);
 
-      const markerElement = document.createElement("div");
-      markerElement.className = "custom-map-marker";
-      markerElement.style.backgroundColor = getMarkerColor(marker.markerColor);
+        const markerElement = document.createElement("div");
+        markerElement.className = `custom-map-marker ${
+          marker.urgency === "Critical" || marker.urgency === "High"
+            ? "critical-pulse-marker"
+            : ""
+        }`;
+        markerElement.style.backgroundColor = getMarkerColor(
+          marker.markerColor
+        );
 
-      const popupHtml = `
-        <div class="map-popup">
-          <h3>${marker.title}</h3>
-          <p><b>ID:</b> ${marker.complaintId}</p>
-          <p><b>Status:</b> ${marker.status}</p>
-          <p><b>Urgency:</b> ${marker.urgency}</p>
-          <p><b>AI Score:</b> ${marker.aiScore}/100</p>
-          <p><b>Department:</b> ${marker.department}</p>
-          <p><b>Address:</b> ${marker.location?.address || "N/A"}</p>
-        </div>
-      `;
+        const popupHtml = `
+          <div class="map-popup">
+            <h3>${marker.title}</h3>
+            <p><b>ID:</b> ${marker.complaintId}</p>
+            <p><b>Status:</b> ${marker.status}</p>
+            <p><b>Urgency:</b> ${marker.urgency}</p>
+            <p><b>AI Score:</b> ${marker.aiScore}/100</p>
+            <p><b>Department:</b> ${marker.department}</p>
+            <p><b>Address:</b> ${marker.location?.address || "N/A"}</p>
+          </div>
+        `;
 
-      const mapMarker = new mapboxgl.Marker(markerElement)
-        .setLngLat([marker.location.lng, marker.location.lat])
-        .setPopup(new mapboxgl.Popup({ offset: 18 }).setHTML(popupHtml))
-        .addTo(mapboxRef.current);
+        const mapMarker = new mapboxgl.Marker(markerElement)
+          .setLngLat([marker.location.lng, marker.location.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 18 }).setHTML(popupHtml))
+          .addTo(mapboxRef.current);
 
-      markerRefs.current.push(mapMarker);
-    });
+        markerRefs.current.push(mapMarker);
+      });
+    }
 
-    if (coordinates.length > 0) {
+    if (coordinates.length > 0 && !focusLocation) {
       const bounds = new mapboxgl.LngLatBounds();
       coordinates.forEach((c) => bounds.extend(c));
-      mapboxRef.current.fitBounds(bounds, { padding: 80, maxZoom: 14 });
+      mapboxRef.current.fitBounds(bounds, { padding: 60, maxZoom: 14 });
     }
-  }, [markers, zones, isDark, token]);
+  }, [markers, zones, isDark, token, showMarkers]);
 
-  // ================= LEAFLET OPENSTREETMAP MODE (Default / Tokenless) =================
+  // ================= 2. LEAFLET ENGINE (Modern OpenStreetMap / CartoDB) =================
   useEffect(() => {
     if (token || !mapContainerRef.current) return;
 
-    const map = L.map(mapContainerRef.current).setView([13.0418, 80.2341], 11);
+    const initialCenter =
+      activeCity === "Kolkata" ? [22.5519, 88.3524] : [13.0418, 80.2341];
+
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: true,
+      scrollWheelZoom: true,
+    }).setView(initialCenter, 12);
+
     leafletMapRef.current = map;
 
+    // Use clean, modern CartoDB Voyager tiles (crisp Google-like style)
     const tileUrl = isDark
       ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
     L.tileLayer(tileUrl, {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
       maxZoom: 19,
+      subdomains: "abcd",
     }).addTo(map);
 
     leafletZonesLayerRef.current = L.layerGroup().addTo(map);
@@ -136,7 +195,7 @@ const MapComponent = ({ markers = [], zones = [] }) => {
     };
   }, [token]);
 
-  // Tile layer update on dark mode toggle
+  // Handle Dark / Light Mode Tile Switch
   useEffect(() => {
     if (token || !leafletMapRef.current) return;
 
@@ -149,18 +208,65 @@ const MapComponent = ({ markers = [], zones = [] }) => {
 
     const tileUrl = isDark
       ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
     L.tileLayer(tileUrl, {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
       maxZoom: 19,
+      subdomains: "abcd",
     }).addTo(map);
   }, [isDark, token]);
 
-  // Update Leaflet Heatmap Zones & Markers
+  // Handle Camera Fly-To when focusLocation or activeCity changes
   useEffect(() => {
-    if (token || !leafletMapRef.current || !leafletZonesLayerRef.current || !leafletMarkersLayerRef.current) return;
+    if (focusLocation) {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.flyTo(
+          [focusLocation.lat, focusLocation.lng],
+          focusLocation.zoom || 15,
+          { duration: 1.2, easeLinearity: 0.25 }
+        );
+      } else if (mapboxRef.current) {
+        mapboxRef.current.flyTo({
+          center: [focusLocation.lng, focusLocation.lat],
+          zoom: focusLocation.zoom || 15,
+          duration: 1200,
+        });
+      }
+    }
+  }, [focusLocation]);
+
+  // Camera Fly-To on activeCity change
+  useEffect(() => {
+    if (!activeCity || focusLocation) return;
+
+    let target = null;
+    if (activeCity === "Chennai") target = [13.0418, 80.2341];
+    else if (activeCity === "Kolkata") target = [22.5519, 88.3524];
+
+    if (target) {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.flyTo(target, 12, { duration: 1.2 });
+      } else if (mapboxRef.current) {
+        mapboxRef.current.flyTo({
+          center: [target[1], target[0]],
+          zoom: 12,
+          duration: 1200,
+        });
+      }
+    }
+  }, [activeCity]);
+
+  // Render Leaflet Layers (Dual-Ring Heat Aura + Interactive Problem Markers)
+  useEffect(() => {
+    if (
+      token ||
+      !leafletMapRef.current ||
+      !leafletZonesLayerRef.current ||
+      !leafletMarkersLayerRef.current
+    )
+      return;
 
     const map = leafletMapRef.current;
     const zonesLayer = leafletZonesLayerRef.current;
@@ -171,142 +277,293 @@ const MapComponent = ({ markers = [], zones = [] }) => {
 
     const allCoords = [];
 
-    // 1. Render Heatmap Area Zones (Low, Medium, High Priority)
-    zones.forEach((zone) => {
-      if (!zone.centerLocation?.lat || !zone.centerLocation?.lng) return;
+    // 1. RENDER PROPER HEATMAP AREAS (Low, Medium, High Priority)
+    if (showHeatZones) {
+      zones.forEach((zone) => {
+        if (!zone.centerLocation?.lat || !zone.centerLocation?.lng) return;
 
-      const lat = zone.centerLocation.lat;
-      const lng = zone.centerLocation.lng;
-      allCoords.push([lat, lng]);
+        const lat = zone.centerLocation.lat;
+        const lng = zone.centerLocation.lng;
+        allCoords.push([lat, lng]);
 
-      const colors = getZoneColor(zone.heatLevel);
-      const radius = Math.max(500, Math.min(2000, (zone.totalComplaints || 1) * 350));
+        const colors = getZoneColor(zone.heatLevel);
 
-      // Circular heatmap area zone
-      const circle = L.circle([lat, lng], {
-        color: colors.stroke,
-        weight: 2,
-        fillColor: colors.fill,
-        fillOpacity: isDark ? 0.35 : 0.28,
-        radius: radius,
-      });
+        // Core radius scale based on reported complaint intensity
+        const baseRadius = Math.max(
+          550,
+          Math.min(1800, (zone.totalComplaints || 1) * 350)
+        );
 
-      const zonePopupHtml = `
-        <div class="map-popup" style="min-width: 200px;">
-          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${colors.fill};"></span>
-            <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">${zone.zoneName}</h3>
+        // Outer Ambient Dispersion Aura (Soft gradient falloff)
+        const outerAura = L.circle([lat, lng], {
+          color: colors.stroke,
+          weight: 1,
+          dashArray: "4, 6",
+          fillColor: colors.fill,
+          fillOpacity: isDark ? 0.16 : 0.12,
+          radius: baseRadius * 1.5,
+        });
+
+        // Inner Core Hotspot (Vibrant density focus)
+        const coreHotspot = L.circle([lat, lng], {
+          color: colors.stroke,
+          weight: 2.5,
+          fillColor: colors.fill,
+          fillOpacity: isDark ? 0.38 : 0.3,
+          radius: baseRadius,
+        });
+
+        const zonePopupHtml = `
+          <div class="map-popup" style="min-width: 220px; font-family: inherit;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid ${
+              colors.stroke
+            }; padding-bottom: 6px; margin-bottom: 8px;">
+              <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a;">${
+                zone.zoneName
+              }</h3>
+              <span style="background: ${colors.badgeBg}; color: white; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800;">
+                ${zone.heatLevel} Priority
+              </span>
+            </div>
+            <p style="margin: 4px 0; font-size: 13px; color: #334155;"><b>Region:</b> ${
+              zone.area
+            }</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #0f172a; font-weight: 700;">
+              Total Reported Issues: <b>${zone.totalComplaints}</b>
+            </p>
+            <div style="background: ${
+              isDark ? "#1e293b" : "#f1f5f9"
+            }; border-radius: 8px; padding: 6px 10px; margin: 8px 0; font-size: 12px;">
+              <span style="color: #ef4444; font-weight: 700;">🔴 Critical/High: ${
+                zone.highPriorityCount
+              }</span><br />
+              <span style="color: #f59e0b; font-weight: 700;">🟡 Medium: ${
+                zone.mediumPriorityCount
+              }</span><br />
+              <span style="color: #10b981; font-weight: 700;">🟢 Low: ${
+                zone.lowPriorityCount
+              }</span>
+            </div>
+            <div style="font-size: 11px; color: #64748b; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 6px;">
+              <span>Pending: <b>${zone.pendingCount}</b></span>
+              <span>Resolved: <b>${zone.resolvedCount}</b></span>
+            </div>
           </div>
-          <p style="margin: 3px 0; font-size: 12px; color: ${colors.stroke}; font-weight: 700;">
-            🔥 ${colors.label} Zone (${zone.heatLevel})
-          </p>
-          <p style="margin: 3px 0; font-size: 13px; color: #334155;"><b>Area:</b> ${zone.area}</p>
-          <p style="margin: 3px 0; font-size: 13px; color: #334155;"><b>Total Complaints:</b> ${zone.totalComplaints}</p>
-          <p style="margin: 3px 0; font-size: 13px; color: #ef4444;"><b>High/Critical:</b> ${zone.highPriorityCount}</p>
-          <p style="margin: 3px 0; font-size: 13px; color: #f59e0b;"><b>Medium:</b> ${zone.mediumPriorityCount}</p>
-          <p style="margin: 3px 0; font-size: 13px; color: #10b981;"><b>Low:</b> ${zone.lowPriorityCount}</p>
-          <p style="margin: 3px 0; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 4px; margin-top: 6px;">
-            Pending: ${zone.pendingCount} | Resolved: ${zone.resolvedCount}
-          </p>
-        </div>
-      `;
+        `;
 
-      circle.bindPopup(zonePopupHtml);
-      circle.addTo(zonesLayer);
+        outerAura.bindPopup(zonePopupHtml);
+        coreHotspot.bindPopup(zonePopupHtml);
 
-      // Area label badge at center
-      const badgeIcon = L.divIcon({
-        className: "custom-zone-badge-wrap",
-        html: `
-          <div style="background-color: ${colors.fill}; color: white; padding: 2px 7px; border-radius: 12px; font-size: 10px; font-weight: 700; border: 1.5px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.35); text-align: center; white-space: nowrap; transform: translate(-50%, -50%); pointer-events: none;">
-            ${zone.zoneName} • ${zone.heatLevel} (${zone.totalComplaints})
-          </div>
-        `,
-        iconSize: [0, 0],
-      });
+        outerAura.addTo(zonesLayer);
+        coreHotspot.addTo(zonesLayer);
 
-      L.marker([lat, lng], { icon: badgeIcon, interactive: false }).addTo(zonesLayer);
-    });
+        // Neat Floating Area Badge directly above the zone
+        const badgeIcon = L.divIcon({
+          className: "custom-zone-badge-wrap",
+          html: `
+            <div style="background-color: ${
+              colors.badgeBg
+            }; color: white; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; border: 2px solid white; box-shadow: 0 4px 14px rgba(0,0,0,0.3); text-align: center; white-space: nowrap; transform: translate(-50%, -50%); cursor: pointer;">
+              📍 ${zone.zoneName} (${zone.totalComplaints})
+            </div>
+          `,
+          iconSize: [0, 0],
+        });
 
-    // 2. Render Complaint Markers
-    markers.forEach((marker) => {
-      if (!marker.location?.lat || !marker.location?.lng) return;
-
-      allCoords.push([marker.location.lat, marker.location.lng]);
-
-      const markerHtml = `
-        <div style="background-color: ${getMarkerColor(
-          marker.markerColor
-        )}; width: 22px; height: 22px; border-radius: 999px; border: 3px solid white; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4); cursor: pointer; transition: transform 0.2s;"></div>
-      `;
-
-      const customIcon = L.divIcon({
-        className: "custom-leaflet-marker",
-        html: markerHtml,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-        popupAnchor: [0, -11],
-      });
-
-      const popupHtml = `
-        <div class="map-popup">
-          <h3 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #0f172a;">${marker.title}</h3>
-          <p style="margin: 3px 0; font-size: 12px; color: #334155;"><b>ID:</b> ${marker.complaintId}</p>
-          <p style="margin: 3px 0; font-size: 12px; color: #334155;"><b>Status:</b> ${marker.status}</p>
-          <p style="margin: 3px 0; font-size: 12px; color: #334155;"><b>Urgency:</b> <span style="font-weight: 700; color: ${getMarkerColor(marker.markerColor)}">${marker.urgency}</span></p>
-          <p style="margin: 3px 0; font-size: 12px; color: #334155;"><b>AI Score:</b> ${marker.aiScore}/100</p>
-          <p style="margin: 3px 0; font-size: 12px; color: #334155;"><b>Department:</b> ${marker.department}</p>
-          <p style="margin: 3px 0; font-size: 12px; color: #334155;"><b>Address:</b> ${marker.location?.address || "N/A"}</p>
-        </div>
-      `;
-
-      L.marker([marker.location.lat, marker.location.lng], { icon: customIcon })
-        .bindPopup(popupHtml)
-        .addTo(markersLayer);
-    });
-
-    // Auto-fit view to show all zones and markers
-    if (allCoords.length > 0) {
-      map.fitBounds(L.latLngBounds(allCoords), {
-        padding: [60, 60],
-        maxZoom: 14,
+        const badgeMarker = L.marker([lat, lng], { icon: badgeIcon });
+        badgeMarker.bindPopup(zonePopupHtml);
+        badgeMarker.addTo(zonesLayer);
       });
     }
-  }, [markers, zones, token, isDark]);
+
+    // 2. RENDER REPORTED PROBLEM PINS WITH CATEGORY ICONS & PULSE
+    if (showMarkers) {
+      markers.forEach((marker) => {
+        if (!marker.location?.lat || !marker.location?.lng) return;
+
+        allCoords.push([marker.location.lat, marker.location.lng]);
+
+        const isUrgent =
+          marker.urgency === "Critical" || marker.urgency === "High";
+        const pinColor = getMarkerColor(marker.markerColor);
+        const iconEmoji = getCategoryIcon(marker.category);
+
+        const markerHtml = `
+          <div class="${isUrgent ? "critical-pulse-marker" : ""}" style="
+            background-color: ${pinColor};
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2.5px solid #ffffff;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+          " title="${marker.title}">
+            ${iconEmoji}
+          </div>
+        `;
+
+        const customIcon = L.divIcon({
+          className: "custom-problem-pin",
+          html: markerHtml,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+          popupAnchor: [0, -14],
+        });
+
+        const popupHtml = `
+          <div class="map-popup" style="min-width: 230px; font-family: inherit;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span style="background: ${pinColor}; color: white; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                ${marker.urgency || "Normal"}
+              </span>
+              <small style="font-weight: 800; color: #64748b;">${
+                marker.complaintId
+              }</small>
+            </div>
+            <h3 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.3;">
+              ${marker.title}
+            </h3>
+            <p style="margin: 3px 0; font-size: 12px; color: #475569;">
+              <b>Status:</b> ${marker.status}
+            </p>
+            <p style="margin: 3px 0; font-size: 12px; color: #475569;">
+              <b>Department:</b> ${marker.department}
+            </p>
+            <p style="margin: 3px 0; font-size: 12px; color: #475569;">
+              <b>AI Severity Score:</b> <b>${marker.aiScore}/100</b>
+            </p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+              📍 ${marker.location?.address || "Address not provided"}
+            </p>
+          </div>
+        `;
+
+        L.marker([marker.location.lat, marker.location.lng], { icon: customIcon })
+          .bindPopup(popupHtml)
+          .addTo(markersLayer);
+      });
+    }
+
+    // Auto-fit to active coordinates if not explicitly focusing
+    if (allCoords.length > 0 && !focusLocation && !activeCity) {
+      map.fitBounds(L.latLngBounds(allCoords), {
+        padding: [60, 60],
+        maxZoom: 13,
+      });
+    }
+  }, [markers, zones, token, isDark, showHeatZones, showMarkers]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div
         ref={mapContainerRef}
         className="map-container"
-        style={{ width: "100%", height: "620px" }}
+        style={{ width: "100%", height: "640px", borderRadius: "24px" }}
       ></div>
 
-      {!token && (
-        <div
+      {/* Floating Modern Map Controls */}
+      <div
+        style={{
+          position: "absolute",
+          top: "14px",
+          right: "14px",
+          zIndex: 1000,
+          display: "flex",
+          gap: "8px",
+          background: isDark
+            ? "rgba(15, 23, 42, 0.9)"
+            : "rgba(255, 255, 255, 0.94)",
+          padding: "6px 10px",
+          borderRadius: "14px",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)",
+          border: isDark ? "1px solid #334155" : "1px solid #e2e8f0",
+          backdropFilter: "blur(6px)",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setShowHeatZones(!showHeatZones)}
           style={{
-            position: "absolute",
-            bottom: "12px",
-            left: "12px",
-            zIndex: 1000,
-            background: isDark
-              ? "rgba(15, 23, 42, 0.88)"
-              : "rgba(255, 255, 255, 0.92)",
-            color: isDark ? "#e2e8f0" : "#1e293b",
-            padding: "6px 12px",
+            background: showHeatZones
+              ? "#ef4444"
+              : isDark
+              ? "#334155"
+              : "#e2e8f0",
+            color: showHeatZones ? "#ffffff" : isDark ? "#cbd5e1" : "#475569",
+            border: "none",
             borderRadius: "8px",
+            padding: "5px 10px",
             fontSize: "12px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            backdropFilter: "blur(4px)",
-            border: isDark ? "1px solid #334155" : "1px solid #e2e8f0",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
+            fontWeight: 700,
+            cursor: "pointer",
+            transition: "all 0.2s",
           }}
         >
-          <span>🗺️ <b>Live Heatmap Active</b> (Red: High, Yellow: Medium, Green: Low Priority)</span>
-        </div>
-      )}
+          🔥 Heat Areas {showHeatZones ? "ON" : "OFF"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowMarkers(!showMarkers)}
+          style={{
+            background: showMarkers ? "#2563eb" : isDark ? "#334155" : "#e2e8f0",
+            color: showMarkers ? "#ffffff" : isDark ? "#cbd5e1" : "#475569",
+            border: "none",
+            borderRadius: "8px",
+            padding: "5px 10px",
+            fontSize: "12px",
+            fontWeight: 700,
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+        >
+          📍 Issue Pins {showMarkers ? "ON" : "OFF"}
+        </button>
+      </div>
+
+      {/* Floating Status Indicator */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "14px",
+          left: "14px",
+          zIndex: 1000,
+          background: isDark
+            ? "rgba(15, 23, 42, 0.9)"
+            : "rgba(255, 255, 255, 0.94)",
+          color: isDark ? "#f8fafc" : "#0f172a",
+          padding: "6px 14px",
+          borderRadius: "12px",
+          fontSize: "12px",
+          fontWeight: 700,
+          boxShadow: "0 6px 20px rgba(15, 23, 42, 0.15)",
+          backdropFilter: "blur(6px)",
+          border: isDark ? "1px solid #334155" : "1px solid #e2e8f0",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            width: "8px",
+            height: "8px",
+            borderRadius: "50%",
+            backgroundColor: "#22c55e",
+            boxShadow: "0 0 8px #22c55e",
+          }}
+        ></span>
+        <span>
+          <b>MongoDB Live Heatmap</b> • {zones.length} Zones • {markers.length}{" "}
+          Complaints
+        </span>
+      </div>
     </div>
   );
 };
