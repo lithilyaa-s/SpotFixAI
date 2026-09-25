@@ -2,22 +2,28 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Building2,
-  Filter,
+  Globe as GlobeIcon,
+  Map as MapIcon,
   MapPinned,
   RefreshCw,
   Search,
 } from "lucide-react";
 import { getPublicHeatmapData } from "../services/heatmapService";
 import MapComponent from "../components/MapComponent";
+import GlobeComponent from "../components/GlobeComponent";
 import HeatmapLegend from "../components/HeatmapLegend";
 import Loader from "../components/Loader";
 import StatusBadge from "../components/StatusBadge";
 import UrgencyBadge from "../components/UrgencyBadge";
+import { useTheme } from "../context/ThemeContext";
 
 const MapView = () => {
+  const { isDark } = useTheme();
+
   const [zones, setZones] = useState([]);
   const [markers, setMarkers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState("globe"); // "globe" or "map"
   const [keyword, setKeyword] = useState("");
   const [urgencyFilter, setUrgencyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -117,7 +123,7 @@ const MapView = () => {
         id: zone.zoneName,
       });
 
-      // Smooth scroll up to map if user scrolled down
+      // Smooth scroll up to map card if user scrolled down
       const mapElem = document.querySelector(".map-card");
       if (mapElem) {
         mapElem.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -152,15 +158,45 @@ const MapView = () => {
           <span>Live Civic Issue Heatmap</span>
           <h1>Civic Problem Areas Map</h1>
           <p>
-            Real-time geospatial hotspot intelligence powered by MongoDB. Click
-            any region or problem area to explore reported issues.
+            Real-time geospatial hotspot intelligence powered by MongoDB. View
+            all reported problem areas across the globe or drill into street details.
           </p>
         </div>
 
-        <button className="secondary-action-btn" onClick={fetchHeatmap}>
-          <RefreshCw size={18} />
-          Refresh Data
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {/* 3D Globe vs 2D Map Toggle */}
+          <div
+            style={{
+              display: "flex",
+              background: isDark ? "#1e293b" : "#e2e8f0",
+              padding: "4px",
+              borderRadius: "14px",
+              border: isDark ? "1px solid #334155" : "1px solid #cbd5e1",
+            }}
+          >
+            <button
+              type="button"
+              className={`city-pill-btn ${viewMode === "globe" ? "active" : ""}`}
+              onClick={() => setViewMode("globe")}
+              style={{ border: "none", padding: "6px 14px" }}
+            >
+              <GlobeIcon size={16} /> 3D Globe
+            </button>
+            <button
+              type="button"
+              className={`city-pill-btn ${viewMode === "map" ? "active" : ""}`}
+              onClick={() => setViewMode("map")}
+              style={{ border: "none", padding: "6px 14px" }}
+            >
+              <MapIcon size={16} /> 2D Map
+            </button>
+          </div>
+
+          <button className="secondary-action-btn" onClick={fetchHeatmap}>
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+        </div>
       </section>
 
       {/* Modern City / Region Filter Bar */}
@@ -253,13 +289,24 @@ const MapView = () => {
 
       {/* Main Map + Sidebar Layout */}
       <section className="map-layout">
-        <div className="map-card">
-          <MapComponent
-            markers={filteredMarkers}
-            zones={filteredZones}
-            focusLocation={focusLocation}
-            activeCity={selectedCity}
-          />
+        <div className="map-card" style={{ minHeight: "640px" }}>
+          {viewMode === "globe" ? (
+            <GlobeComponent
+              markers={filteredMarkers}
+              zones={filteredZones}
+              focusLocation={focusLocation}
+              activeCity={selectedCity}
+              onSelectZone={handleZoneClick}
+              isDark={isDark}
+            />
+          ) : (
+            <MapComponent
+              markers={filteredMarkers}
+              zones={filteredZones}
+              focusLocation={focusLocation}
+              activeCity={selectedCity}
+            />
+          )}
         </div>
 
         <aside className="map-side">

@@ -12,6 +12,7 @@
   "dependencies": {
     "axios": "^1.16.0",
     "civicfix-ai": "file:..",
+    "globe.gl": "^2.46.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
     "mapbox-gl": "^3.23.1",
@@ -20,7 +21,8 @@
     "react-hot-toast": "^2.6.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.14.2",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
