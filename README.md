@@ -1,16 +1,16 @@
 <div align="center">
 
 <!-- Animated Top Banner -->
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=900&size=34&duration=2500&pause=700&color=2563EB&center=true&vCenter=true&width=950&lines=CivicFix+AI+%F0%9F%9A%80;Smart+Civic+Complaint+Platform;AI+Priority+%7C+Heatmap+%7C+OTP+Tracking;Built+with+MERN+Stack" alt="CivicFix AI Animated Header" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=900&size=34&duration=2500&pause=700&color=2563EB&center=true&vCenter=true&width=950&lines=SpotFix+AI+%F0%9F%9A%80;Smart+Civic+Complaint+Platform;AI+Priority+%7C+Heatmap+%7C+OTP+Tracking;Built+with+MERN+Stack" alt="SpotFix AI Animated Header" />
 
 <br />
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2563EB,50:06B6D4,100:22C55E&height=180&section=header&text=CivicFix%20AI&fontSize=55&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=AI-Assisted%20Smart%20Civic%20Complaint%20Management%20System&descAlignY=58&descSize=18" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2563EB,50:06B6D4,100:22C55E&height=180&section=header&text=SpotFix%20AI&fontSize=55&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=AI-Assisted%20Smart%20Civic%20Complaint%20Management%20System&descAlignY=58&descSize=18" />
 
 <br />
 
 <p>
-  <img src="https://img.shields.io/badge/Project-CivicFix%20AI-2563EB?style=for-the-badge&logo=googlemaps&logoColor=white" />
+  <img src="https://img.shields.io/badge/Project-SpotFix%20AI-2563EB?style=for-the-badge&logo=googlemaps&logoColor=white" />
   <img src="https://img.shields.io/badge/Stack-MERN-22C55E?style=for-the-badge&logo=mongodb&logoColor=white" />
   <img src="https://img.shields.io/badge/Status-Hackathon%20Ready-06B6D4?style=for-the-badge&logo=rocket&logoColor=white" />
 </p>
@@ -36,7 +36,7 @@
 |---|---|
 | 🚀 Live Demo | `https://civicfix-ai-jmdz.onrender.com` |
 | 💻 GitHub Repo | `https://github.com/JEETJM/civicfix-ai` |
-| 👨‍💻 Developer | **Jeet Mondal** |
+| 👨‍💻 Developer | **Lithilya** |
 
 ---
 

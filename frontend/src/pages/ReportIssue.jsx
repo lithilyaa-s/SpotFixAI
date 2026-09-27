@@ -235,7 +235,7 @@ const ReportIssue = () => {
           <span>Citizen Complaint</span>
           <h1>Report a Civic Issue</h1>
           <p>
-            Submit issue details with location. CivicFix AI will analyze
+            Submit issue details with location. SpotFix AI will analyze
             category, priority, urgency, and department routing.
           </p>
         </div>

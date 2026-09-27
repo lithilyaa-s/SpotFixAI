@@ -44,7 +44,7 @@ const Navbar = () => {
         </span>
 
         <span>
-          CivicFix <b>AI</b>
+          SpotFix <b>AI</b>
         </span>
       </Link>
 

@@ -9,7 +9,7 @@ const Loader = ({ text = "Loading..." }) => {
         <div className="loader-spinner"></div>
 
         <h2>{text}</h2>
-        <p>Please wait while CivicFix AI prepares your data.</p>
+        <p>Please wait while SpotFix AI prepares your data.</p>
       </div>
     </main>
   );

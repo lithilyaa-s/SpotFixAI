@@ -1,7 +1,7 @@
 const createTransporter = require("../config/mailConfig");
 
 const getFromAddress = () => {
-  const fromName = process.env.BREVO_FROM_NAME || "CivicFix AI";
+  const fromName = process.env.BREVO_FROM_NAME || "SpotFix AI";
   const fromEmail = process.env.BREVO_FROM_EMAIL;
 
   if (!fromEmail) {
@@ -19,7 +19,7 @@ const getEmailTemplate = ({ otp, purpose, complaintId = "" }) => {
     : "Complaint Tracking OTP";
 
   const mainMessage = isForgotPassword
-    ? "You requested to reset your CivicFix AI password. Use the OTP below:"
+    ? "You requested to reset your SpotFix AI password. Use the OTP below:"
     : `You requested to track your complaint ${complaintId}. Use the OTP below:`;
 
   const footerMessage = isForgotPassword
@@ -52,7 +52,7 @@ const getEmailTemplate = ({ otp, purpose, complaintId = "" }) => {
 
                       <td style="vertical-align:middle; padding-left:16px;">
                         <h1 style="margin:0; color:#14c8a6; font-size:32px; line-height:1.1; font-weight:900;">
-                          CivicFix <span style="color:#38bdf8;">AI</span>
+                          SpotFix <span style="color:#38bdf8;">AI</span>
                         </h1>
                         <p style="margin:5px 0 0; color:#9fb2c4; font-size:14px; font-weight:700;">
                           Smart Civic Complaint Resolution
@@ -110,7 +110,7 @@ const getEmailTemplate = ({ otp, purpose, complaintId = "" }) => {
               <tr>
                 <td style="background:#111d27; padding:18px 34px; text-align:center; border-top:1px solid #2d3f4d;">
                   <p style="margin:0; color:#8fa6b8; font-size:13px; font-weight:700;">
-                    © 2026 CivicFix AI · Report smarter. Fix faster.
+                    © 2026 SpotFix AI · Report smarter. Fix faster.
                   </p>
                 </td>
               </tr>
@@ -129,8 +129,8 @@ const sendOTPEmail = async ({ to, otp, purpose, complaintId = "" }) => {
 
   const subject =
     purpose === "FORGOT_PASSWORD"
-      ? "CivicFix AI Password Reset OTP"
-      : "CivicFix AI Complaint Tracking OTP";
+      ? "SpotFix AI Password Reset OTP"
+      : "SpotFix AI Complaint Tracking OTP";
 
   const html = getEmailTemplate({
     otp,

@@ -77,7 +77,7 @@ if (env.NODE_ENV !== "production") {
   app.get("/", (req, res) => {
     res.status(200).json({
       success: true,
-      message: "Welcome to CivicFix AI Backend",
+      message: "Welcome to SpotFix AI Backend",
     });
   });
 }
@@ -102,7 +102,7 @@ app.use(errorHandler);
 
 if (require.main === module) {
   app.listen(env.PORT, () => {
-    console.log(`🚀 CivicFix AI server running on port ${env.PORT}`);
+    console.log(`🚀 SpotFix AI server running on port ${env.PORT}`);
   });
 }
 

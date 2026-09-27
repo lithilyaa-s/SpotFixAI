@@ -18,9 +18,12 @@ const AuthContext = createContext(null);
 
 const getSavedUser = () => {
   try {
-    const savedUser = localStorage.getItem("civicfix_user");
+    const savedUser =
+      localStorage.getItem("spotfix_user") ||
+      localStorage.getItem("civicfix_user");
     return savedUser ? JSON.parse(savedUser) : null;
   } catch {
+    localStorage.removeItem("spotfix_user");
     localStorage.removeItem("civicfix_user");
     return null;
   }
@@ -28,22 +31,26 @@ const getSavedUser = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getSavedUser);
-  const [token, setToken] = useState(() =>
-    localStorage.getItem("civicfix_token")
+  const [token, setToken] = useState(
+    () =>
+      localStorage.getItem("spotfix_token") ||
+      localStorage.getItem("civicfix_token")
   );
   const [loading, setLoading] = useState(true);
 
   const isAuthenticated = Boolean(user && token);
 
   const saveAuth = useCallback((authData) => {
-    localStorage.setItem("civicfix_token", authData.token);
-    localStorage.setItem("civicfix_user", JSON.stringify(authData.user));
+    localStorage.setItem("spotfix_token", authData.token);
+    localStorage.setItem("spotfix_user", JSON.stringify(authData.user));
 
     setToken(authData.token);
     setUser(authData.user);
   }, []);
 
   const clearAuth = useCallback(() => {
+    localStorage.removeItem("spotfix_token");
+    localStorage.removeItem("spotfix_user");
     localStorage.removeItem("civicfix_token");
     localStorage.removeItem("civicfix_user");
 
@@ -99,7 +106,9 @@ export const AuthProvider = ({ children }) => {
   );
 
   const refreshProfile = useCallback(async () => {
-    const savedToken = localStorage.getItem("civicfix_token");
+    const savedToken =
+      localStorage.getItem("spotfix_token") ||
+      localStorage.getItem("civicfix_token");
 
     if (!savedToken) {
       setLoading(false);
@@ -109,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await getMyProfile();
       setUser(data.user);
-      localStorage.setItem("civicfix_user", JSON.stringify(data.user));
+      localStorage.setItem("spotfix_user", JSON.stringify(data.user));
     } catch {
       clearAuth();
     } finally {

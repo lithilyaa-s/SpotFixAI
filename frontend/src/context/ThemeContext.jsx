@@ -4,12 +4,15 @@ const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(
-    () => localStorage.getItem("civicfix_theme") || "light"
+    () =>
+      localStorage.getItem("spotfix_theme") ||
+      localStorage.getItem("civicfix_theme") ||
+      "light"
   );
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("civicfix_theme", theme);
+    localStorage.setItem("spotfix_theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {

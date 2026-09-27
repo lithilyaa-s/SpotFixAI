@@ -1,7 +1,7 @@
 {
   "name": "civicfix-ai-backend",
   "version": "1.0.0",
-  "description": "CivicFix AI backend API",
+  "description": "SpotFix AI backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,7 @@
     "smart-city",
     "complaint-management"
   ],
-  "author": "Jeet Mondal",
+  "author": "Lithilya",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.2",

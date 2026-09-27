@@ -9,7 +9,9 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("civicfix_token");
+  const token =
+    localStorage.getItem("spotfix_token") ||
+    localStorage.getItem("civicfix_token");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

@@ -29,7 +29,7 @@ const MailIcon = () => (
 const Footer = () => {
   return (
     <footer className="civic-simple-footer">
-      <p>© 2026 CivicFix AI. Built by Jeet Mondal.</p>
+      <p>© 2026 SpotFix AI. Built by Lithilya.</p>
 
       <div className="civic-footer-icons">
         <a

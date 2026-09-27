@@ -60,6 +60,7 @@ const MapComponent = ({
 
   const [showHeatZones, setShowHeatZones] = useState(true);
   const [showMarkers, setShowMarkers] = useState(true);
+  const [mapLayer, setMapLayer] = useState(isDark ? "dark" : "street");
 
   const mapContainerRef = useRef(null);
   const mapboxRef = useRef(null);
@@ -67,6 +68,30 @@ const MapComponent = ({
   const markerRefs = useRef([]);
   const leafletZonesLayerRef = useRef(null);
   const leafletMarkersLayerRef = useRef(null);
+  const tileLayerRef = useRef(null);
+  const labelLayerRef = useRef(null);
+
+  // Sync theme with map layer if user hasn't explicitly chosen satellite
+  useEffect(() => {
+    if (mapLayer !== "satellite") {
+      setMapLayer(isDark ? "dark" : "street");
+    }
+  }, [isDark]);
+
+  // Handle Resize for crystal-clear canvas rendering
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const observer = new ResizeObserver(() => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize();
+      }
+      if (mapboxRef.current) {
+        mapboxRef.current.resize();
+      }
+    });
+    observer.observe(mapContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // ================= 1. MAPBOX ENGINE (If token is provided) =================
   useEffect(() => {
@@ -77,11 +102,16 @@ const MapComponent = ({
     const initialCenter =
       activeCity === "Kolkata" ? [88.3639, 22.5726] : [80.2341, 13.0418];
 
+    const styleUrl =
+      mapLayer === "satellite"
+        ? "mapbox://styles/mapbox/satellite-streets-v12"
+        : mapLayer === "dark" || isDark
+        ? "mapbox://styles/mapbox/dark-v11"
+        : "mapbox://styles/mapbox/streets-v12";
+
     mapboxRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: isDark
-        ? "mapbox://styles/mapbox/dark-v11"
-        : "mapbox://styles/mapbox/streets-v12",
+      style: styleUrl,
       center: initialCenter,
       zoom: 12,
     });
@@ -101,12 +131,15 @@ const MapComponent = ({
   useEffect(() => {
     if (!token || !mapboxRef.current) return;
 
-    mapboxRef.current.setStyle(
-      isDark
+    const styleUrl =
+      mapLayer === "satellite"
+        ? "mapbox://styles/mapbox/satellite-streets-v12"
+        : mapLayer === "dark" || isDark
         ? "mapbox://styles/mapbox/dark-v11"
-        : "mapbox://styles/mapbox/streets-v12"
-    );
-  }, [isDark, token]);
+        : "mapbox://styles/mapbox/streets-v12";
+
+    mapboxRef.current.setStyle(styleUrl);
+  }, [isDark, token, mapLayer]);
 
   useEffect(() => {
     if (!token || !mapboxRef.current) return;
@@ -160,7 +193,7 @@ const MapComponent = ({
     }
   }, [markers, zones, isDark, token, showMarkers]);
 
-  // ================= 2. LEAFLET ENGINE (Modern OpenStreetMap / CartoDB) =================
+  // ================= 2. LEAFLET ENGINE (Ultra-HD CartoDB @2x & Esri Satellite) =================
   useEffect(() => {
     if (token || !mapContainerRef.current) return;
 
@@ -170,21 +203,12 @@ const MapComponent = ({
     const map = L.map(mapContainerRef.current, {
       zoomControl: true,
       scrollWheelZoom: true,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 90,
     }).setView(initialCenter, 12);
 
     leafletMapRef.current = map;
-
-    // Use clean, modern CartoDB Voyager tiles (crisp Google-like style)
-    const tileUrl = isDark
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-    L.tileLayer(tileUrl, {
-      attribution:
-        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-      maxZoom: 19,
-      subdomains: "abcd",
-    }).addTo(map);
 
     leafletZonesLayerRef.current = L.layerGroup().addTo(map);
     leafletMarkersLayerRef.current = L.layerGroup().addTo(map);
@@ -195,28 +219,70 @@ const MapComponent = ({
     };
   }, [token]);
 
-  // Handle Dark / Light Mode Tile Switch
+  // Handle Layer Switching (Street HD @2x, Satellite HD, Dark HD @2x)
   useEffect(() => {
     if (token || !leafletMapRef.current) return;
 
     const map = leafletMapRef.current;
-    map.eachLayer((layer) => {
-      if (layer instanceof L.TileLayer) {
-        map.removeLayer(layer);
-      }
-    });
 
-    const tileUrl = isDark
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    // Remove existing tile layers
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
+    }
+    if (labelLayerRef.current) {
+      map.removeLayer(labelLayerRef.current);
+      labelLayerRef.current = null;
+    }
 
-    L.tileLayer(tileUrl, {
-      attribution:
-        '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-      maxZoom: 19,
-      subdomains: "abcd",
-    }).addTo(map);
-  }, [isDark, token]);
+    if (mapLayer === "satellite") {
+      // 1. Crystal-clear Esri World Imagery Satellite HD
+      tileLayerRef.current = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution:
+            "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and GIS User Community",
+          maxZoom: 19,
+          detectRetina: true,
+        }
+      ).addTo(map);
+
+      // Add high-contrast road and place reference labels overlay
+      labelLayerRef.current = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution: "",
+          maxZoom: 19,
+          detectRetina: true,
+          opacity: 0.85,
+        }
+      ).addTo(map);
+    } else if (mapLayer === "dark") {
+      // 2. Ultra-HD CartoDB Dark Matter with Retina @2x
+      tileLayerRef.current = L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+          maxZoom: 20,
+          subdomains: "abcd",
+          detectRetina: true,
+        }
+      ).addTo(map);
+    } else {
+      // 3. Ultra-HD CartoDB Voyager Streets with Retina @2x (Crisp Google-like style)
+      tileLayerRef.current = L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+          maxZoom: 20,
+          subdomains: "abcd",
+          detectRetina: true,
+        }
+      ).addTo(map);
+    }
+  }, [mapLayer, token]);
 
   // Handle Camera Fly-To when focusLocation or activeCity changes
   useEffect(() => {
@@ -474,17 +540,76 @@ const MapComponent = ({
           right: "14px",
           zIndex: 1000,
           display: "flex",
-          gap: "8px",
+          gap: "6px",
           background: isDark
-            ? "rgba(15, 23, 42, 0.9)"
-            : "rgba(255, 255, 255, 0.94)",
+            ? "rgba(15, 23, 42, 0.92)"
+            : "rgba(255, 255, 255, 0.95)",
           padding: "6px 10px",
           borderRadius: "14px",
-          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.15)",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.18)",
           border: isDark ? "1px solid #334155" : "1px solid #e2e8f0",
-          backdropFilter: "blur(6px)",
+          backdropFilter: "blur(8px)",
+          alignItems: "center",
         }}
       >
+        {/* Layer Styles */}
+        <div style={{ display: "flex", gap: "4px", background: isDark ? "#0f172a" : "#f1f5f9", padding: "3px", borderRadius: "10px" }}>
+          <button
+            type="button"
+            onClick={() => setMapLayer("street")}
+            style={{
+              background: mapLayer === "street" ? "#2563eb" : "transparent",
+              color: mapLayer === "street" ? "#ffffff" : isDark ? "#94a3b8" : "#64748b",
+              border: "none",
+              borderRadius: "7px",
+              padding: "4px 8px",
+              fontSize: "11px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.18s",
+            }}
+          >
+            🗺️ Street HD
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapLayer("satellite")}
+            style={{
+              background: mapLayer === "satellite" ? "#2563eb" : "transparent",
+              color: mapLayer === "satellite" ? "#ffffff" : isDark ? "#94a3b8" : "#64748b",
+              border: "none",
+              borderRadius: "7px",
+              padding: "4px 8px",
+              fontSize: "11px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.18s",
+            }}
+          >
+            🛰️ Satellite HD
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapLayer("dark")}
+            style={{
+              background: mapLayer === "dark" ? "#2563eb" : "transparent",
+              color: mapLayer === "dark" ? "#ffffff" : isDark ? "#94a3b8" : "#64748b",
+              border: "none",
+              borderRadius: "7px",
+              padding: "4px 8px",
+              fontSize: "11px",
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.18s",
+            }}
+          >
+            🌙 Dark HD
+          </button>
+        </div>
+
+        <div style={{ width: "1px", height: "18px", background: isDark ? "#334155" : "#cbd5e1", margin: "0 2px" }} />
+
+        {/* Feature Toggles */}
         <button
           type="button"
           onClick={() => setShowHeatZones(!showHeatZones)}
@@ -511,7 +636,7 @@ const MapComponent = ({
           type="button"
           onClick={() => setShowMarkers(!showMarkers)}
           style={{
-            background: showMarkers ? "#2563eb" : isDark ? "#334155" : "#e2e8f0",
+            background: showMarkers ? "#059669" : isDark ? "#334155" : "#e2e8f0",
             color: showMarkers ? "#ffffff" : isDark ? "#cbd5e1" : "#475569",
             border: "none",
             borderRadius: "8px",

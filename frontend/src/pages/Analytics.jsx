@@ -86,7 +86,7 @@ const Analytics = () => {
       <section className="analytics-header">
         <div>
           <span>Admin Analytics</span>
-          <h1>CivicFix AI Analytics</h1>
+          <h1>SpotFix AI Analytics</h1>
           <p>
             View category-wise, status-wise, department-wise, and priority-wise
             civic issue insights.

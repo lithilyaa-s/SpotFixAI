@@ -1,7 +1,7 @@
 {
   "name": "civicfix-ai",
   "version": "1.0.0",
-  "description": "CivicFix AI - MERN based civic complaint management system",
+  "description": "SpotFix AI - MERN based civic complaint management system",
   "main": "index.js",
   "scripts": {
     "install-all": "npm install --prefix backend && npm install --prefix frontend",
@@ -21,7 +21,7 @@
     "ai-assisted",
     "complaint-management"
   ],
-  "author": "Jeet Mondal",
+  "author": "Lithilya",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.2",

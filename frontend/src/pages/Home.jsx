@@ -25,7 +25,7 @@ const Home = () => {
           </h1>
 
           <p>
-            CivicFix AI helps citizens report broken roads, garbage, drainage,
+            SpotFix AI helps citizens report broken roads, garbage, drainage,
             streetlights, waterlogging, and unsafe public infrastructure with
             photo, location, AI priority score, duplicate detection, department
             routing, and resolution tracking.
@@ -93,7 +93,7 @@ const Home = () => {
 
       <section className="features-section">
         <div className="section-heading">
-          <span>Why CivicFix AI?</span>
+          <span>Why SpotFix AI?</span>
           <h2>Not just a complaint portal</h2>
           <p>
             It understands, prioritizes, routes, verifies, and escalates civic
